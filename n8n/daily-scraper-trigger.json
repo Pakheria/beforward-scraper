@@ -1,0 +1,151 @@
+{
+  "name": "BE FORWARD - Daily Scraper Trigger",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 * * *"
+            }
+          ]
+        }
+      },
+      "id": "cron-trigger",
+      "name": "Every Day at 9 AM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://YOUR_SERVER_IP:5000/scrape",
+        "authentication": "none",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"force\": false\n}",
+        "options": {}
+      },
+      "id": "http-request",
+      "name": "Trigger Scraper",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.success }}",
+              "operation": "equals"
+            }
+          ]
+        }
+      },
+      "id": "check-success",
+      "name": "Check if Success",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "success-message",
+              "name": "message",
+              "value": "={{ $json.message }}",
+              "type": "string"
+            },
+            {
+              "id": "vehicle-ref",
+              "name": "ref_no",
+              "value": "={{ $json.vehicle.specs.ref_no }}",
+              "type": "string"
+            }
+          ]
+        },
+        "mode": "manual"
+      },
+      "id": "success-output",
+      "name": "Success - Log Vehicle",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.2,
+      "position": [850, 200]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "error-message",
+              "name": "error",
+              "value": "={{ $json.message }}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "id": "error-output",
+      "name": "Error - Log",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.2,
+      "position": [850, 400]
+    }
+  ],
+  "connections": {
+    "Every Day at 9 AM": {
+      "main": [
+        [
+          {
+            "node": "Trigger Scraper",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trigger Scraper": {
+      "main": [
+        [
+          {
+            "node": "Check if Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check if Success": {
+      "main": [
+        [
+          {
+            "node": "Success - Log Vehicle",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error - Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 1,
+  "updatedAt": "2025-01-17T00:00:00.000Z",
+  "versionId": "1"
+}

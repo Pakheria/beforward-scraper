@@ -1,0 +1,169 @@
+{
+  "name": "BE FORWARD - Fetch & Post to Facebook",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        }
+      },
+      "id": "poll-trigger",
+      "name": "Poll for New Vehicle",
+      "type": "n8n-nodes-base.pollTrigger",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "beforward-new-vehicle"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://YOUR_SERVER_IP:5000/webhook/new-vehicle",
+        "authentication": "none",
+        "options": {}
+      },
+      "id": "check-new",
+      "name": "Check for New Vehicle",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.post_required }}",
+              "operation": "true"
+            }
+          ]
+        }
+      },
+      "id": "check-if-new",
+      "name": "Is New Vehicle?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "fb-headline",
+              "name": "headline",
+              "value": "=🚗 FOR SALE: {{ $json.vehicle.title }}",
+              "type": "string"
+            },
+            {
+              "id": "fb-body",
+              "name": "body",
+              "value": "=Check out this amazing deal from BE FORWARD!\n\n📍 Location: {{ $json.vehicle.specs.location }}\n💰 Price: {{ $json.vehicle.price }}\n📏 Mileage: {{ $json.vehicle.specs.mileage }}\n\nSpecs:\n• Engine: {{ $json.vehicle.specs.engine_size }}\n• Transmission: {{ $json.vehicle.specs.transmission }}\n• Drive: {{ $json.vehicle.specs.drive }}\n• Fuel: {{ $json.vehicle.specs.fuel }}\n\n{{ $json.vehicle.facebook_post.post_template.cta }}",
+              "type": "string"
+            },
+            {
+              "id": "fb-images",
+              "name": "image_urls",
+              "value": "={{ $json.vehicle.images }}",
+              "type": "array"
+            }
+          ]
+        }
+      },
+      "id": "format-post",
+      "name": "Format Facebook Post",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.2,
+      "position": [850, 200]
+    },
+    {
+      "parameters": {
+        "operation": "post",
+        "pageId": "YOUR_FACEBOOK_PAGE_ID",
+        "text": "={{ $json.headline }}\n\n{{ $json.body }}",
+        "images": "={{ $json.image_urls }}",
+        "additionalFields": {}
+      },
+      "id": "fb-post",
+      "name": "Post to Facebook",
+      "type": "n8n-nodes-base.facebook",
+      "typeVersion": 1,
+      "position": [1050, 200]
+    },
+    {
+      "parameters": {
+        "message": "No new vehicles to post"
+      },
+      "id": "no-new",
+      "name": "No New Vehicle",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [850, 400]
+    }
+  ],
+  "connections": {
+    "Poll for New Vehicle": {
+      "main": [
+        [
+          {
+            "node": "Check for New Vehicle",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check for New Vehicle": {
+      "main": [
+        [
+          {
+            "node": "Is New Vehicle?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is New Vehicle?": {
+      "main": [
+        [
+          {
+            "node": "Format Facebook Post",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No New Vehicle",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Facebook Post": {
+      "main": [
+        [
+          {
+            "node": "Post to Facebook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 1,
+  "updatedAt": "2025-01-17T00:00:00.000Z",
+  "versionId": "1"
+}

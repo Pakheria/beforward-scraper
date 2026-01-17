@@ -1,0 +1,74 @@
+version: '3.8'
+
+services:
+  # BE FORWARD Scraper API
+  beforward-api:
+    build: .
+    container_name: beforward-scraper
+    ports:
+      - "5000:5000"
+    environment:
+      - PORT=5000
+      - LOG_LEVEL=INFO
+      - DEFAULT_COUNTRY=uae
+      - ENABLE_CROPPING=true
+      - CROP_PERCENTAGE=7
+      - CROP_QUALITY=95
+      # Optional: Add API key for authentication
+      # - API_KEY=your-secret-api-key-here
+    volumes:
+      # Persist output data
+      - ./output:/app/output
+      - ./state:/app/state
+    restart: unless-stopped
+    networks:
+      - beforward-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+
+  # n8n Workflow Automation
+  n8n:
+    image: docker.io/n8nio/n8n:latest
+    container_name: n8n
+    ports:
+      - "5678:5678"
+    environment:
+      # n8n basic configuration
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=admin
+      - N8N_BASIC_AUTH_PASSWORD=your-secure-password-here
+      # For production, change these to secure values
+      - N8N_HOST=localhost
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      # Timezone
+      - GENERIC_TIMEZONE=UTC
+      - TZ=UTC
+      # Webhook URL for external access
+      - WEBHOOK_URL=http://localhost:5678/
+      # Execute n8n in own process
+      - EXECUTIONS_PROCESS=main
+      # Save workflow data locally
+      - N8N_USER_FOLDER=/data
+    volumes:
+      # Persist n8n data
+      - n8n_data:/home/node/.n8n
+      # Allow n8n to access scraper output files
+      - ./output:/output:ro  # Read-only access
+    restart: unless-stopped
+    networks:
+      - beforward-network
+    depends_on:
+      - beforward-api
+
+volumes:
+  n8n_data:
+    driver: local
+
+networks:
+  beforward-network:
+    driver: bridge

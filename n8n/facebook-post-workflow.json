@@ -1,0 +1,264 @@
+{
+  "name": "BE FORWARD to Facebook Auto-Poster",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "beforwardScarping/output/vehicles",
+        "watchFile": "facebook.json"
+      },
+      "id": "beforward-watch-trigger",
+      "name": "Watch for New Vehicle",
+      "type": "n8n-nodes-base.fileWatcher",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "notes": "Triggers when a new facebook.json file is created by the daily scraper"
+    },
+    {
+      "parameters": {
+        "filePath": "={{ $json.path }}",
+        "options": {}
+      },
+      "id": "beforward-read-json",
+      "name": "Read Facebook Data",
+      "type": "n8n-nodes-base.readBinaryFile",
+      "typeVersion": 1,
+      "position": [470, 300],
+      "notes": "Read the facebook.json file containing post template"
+    },
+    {
+      "parameters": {
+        "property": "data",
+        "fields": {
+          "string": [
+            {
+              "fieldName": "title",
+              "expression": "={{ $json.content.toString() }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "beforward-parse-json",
+      "name": "Parse JSON Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [690, 300],
+      "notes": "Parse the JSON content from the file"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract vehicle data from parsed JSON\nconst vehicleData = JSON.parse($('Parse JSON Data').item.json.data);\n\n// Format the post content\nconst postContent = {\n  message: vehicleData.post_content.body,\n  // Facebook specific fields\n  link: vehicleData.vehicle_url,\n  caption: vehicleData.title,\n  description: `${vehicleData.location} - ${vehicleData.price}`,\n};\n\n// Get image paths (relative to the facebook.json file)\nconst imagesDir = $('Read Facebook Data').item.json.path.replace('facebook.json', 'images');\nconst imageUrls = [];\n\n// In production, you would upload these images to a publicly accessible URL\n// For now, we'll pass the local paths\nfor (let i = 0; i < Math.min(vehicleData.images.length, 10); i++) {\n  imageUrls.push({\n    localPath: vehicleData.images[i],\n    filename: vehicleData.images[i].split('/').pop()\n  });\n}\n\nreturn {\n  json: {\n    vehicle: vehicleData,\n    post: postContent,\n    images: imageUrls,\n    imagesDir: imagesDir\n  }\n};"
+      },
+      "id": "beforward-format-post",
+      "name": "Format Facebook Post",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [910, 300],
+      "notes": "Format the post content and prepare images for upload"
+    },
+    {
+      "parameters": {
+        "resource": "page",
+        "operation": "publish",
+        "pageId": "YOUR_FACEBOOK_PAGE_ID",
+        "text": "={{ $json.post.message }}",
+        "attachments": "={{ $json.images }}",
+        "options": {
+          "publishing": {
+            "scheduledPublishTime": ""
+          }
+        }
+      },
+      "id": "beforward-facebook-post",
+      "name": "Post to Facebook",
+      "type": "n8n-nodes-base.facebook",
+      "typeVersion": 1,
+      "position": [1130, 300],
+      "credentials": {
+        "facebookApi": {
+          "id": "1",
+          "name": "Facebook account"
+        }
+      },
+      "notes": "Post the vehicle content to Facebook Page with images",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.id }}",
+              "value2": ""
+            }
+          ]
+        }
+      },
+      "id": "beforward-check-success",
+      "name": "Check Post Success",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1350, 300],
+      "notes": "Check if the post was successful"
+    },
+    {
+      "parameters": {
+        "content": "## Facebook Post Failed!\n\n**Error:** {{ $json.error?.message || 'Unknown error' }}\n\n**Vehicle:** {{ $('Format Facebook Post').item.json.vehicle.title }}\n**Ref No:** {{ $('Format Facebook Post').item.json.vehicle.ref_no }}",
+        "height": 400,
+        "width": 600
+      },
+      "id": "beforward-error-summary",
+      "name": "Error Summary",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [1570, 400],
+      "notes": "Display error details when posting fails"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "fileId": "YOUR_GOOGLE_SHEET_FILE_ID",
+        "sheetName": "Sheet1",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "title": "={{ $('Format Facebook Post').item.json.vehicle.title }}",
+            "ref_no": "={{ $('Format Facebook Post').item.json.vehicle.ref_no }}",
+            "price": "={{ $('Format Facebook Post').item.json.vehicle.price }}",
+            "location": "={{ $('Format Facebook Post').item.json.vehicle.location }}",
+            "post_date": "={{ new Date().toISOString() }}",
+            "facebook_post_id": "={{ $json.id }}",
+            "status": "posted"
+          }
+        },
+        "options": {}
+      },
+      "id": "beforward-log-success",
+      "name": "Log to Spreadsheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [1570, 200],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "1",
+          "name": "Google Sheets account"
+        }
+      },
+      "notes": "Log successful posts to a spreadsheet for tracking"
+    },
+    {
+      "parameters": {
+        "operation": "sendMessage",
+        "chatId": "YOUR_TELEGRAM_CHAT_ID",
+        "text": "## BE FORWARD Vehicle Posted!\n\n**Title:** {{ $('Format Facebook Post').item.json.vehicle.title }}\n**Ref No:** {{ $('Format Facebook Post').item.json.vehicle.ref_no }}\n**Price:** {{ $('Format Facebook Post').item.json.vehicle.price }}\n**Location:** {{ $('Format Facebook Post').item.json.vehicle.location }}\n\n✅ Successfully posted to Facebook!\n\n[View Post](https://facebook.com/{{ $json.id }})",
+        "options": {}
+      },
+      "id": "beforward-telegram-notify",
+      "name": "Telegram Notification",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [1790, 200],
+      "credentials": {
+        "telegramApi": {
+          "id": "1",
+          "name": "Telegram account"
+        }
+      },
+      "notes": "Send notification to Telegram when post succeeds (optional)"
+    }
+  ],
+  "connections": {
+    "Watch for New Vehicle": {
+      "main": [
+        [
+          {
+            "node": "Read Facebook Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Facebook Data": {
+      "main": [
+        [
+          {
+            "node": "Parse JSON Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse JSON Data": {
+      "main": [
+        [
+          {
+            "node": "Format Facebook Post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Facebook Post": {
+      "main": [
+        [
+          {
+            "node": "Post to Facebook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Post to Facebook": {
+      "main": [
+        [
+          {
+            "node": "Check Post Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Post Success": {
+      "main": [
+        [
+          {
+            "node": "Log to Spreadsheet",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log to Spreadsheet": {
+      "main": [
+        [
+          {
+            "node": "Telegram Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 1,
+  "updatedAt": "2025-01-16T00:00:00.000Z",
+  "versionId": "1"
+}

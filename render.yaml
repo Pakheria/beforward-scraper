@@ -1,0 +1,51 @@
+services:
+  # Web Service for the API
+  - type: web
+    name: beforward-scraper-api
+    env: docker
+    region: oregon
+    plan: free
+    # Health check path
+    healthCheckPath: /health
+
+    # Environment variables (can also be set in Render dashboard)
+    envVars:
+      - key: PORT
+        value: 5000
+
+      - key: PYTHON_VERSION
+        value: 3.11
+
+      - key: LOG_LEVEL
+        value: INFO
+
+      - key: DEFAULT_COUNTRY
+        value: uae
+
+      - key: ENABLE_CROPPING
+        value: true
+
+      - key: CROP_PERCENTAGE
+        value: 7
+
+      - key: CROP_QUALITY
+        value: 95
+
+      # API Key for authentication (optional but recommended)
+      - key: API_KEY
+        generateValue: true
+
+      # n8n webhook URL (optional - for sending notifications)
+      - key: N8N_WEBHOOK_URL
+        value: https://your-n8n-instance.com/webhook/beforward
+
+    # Disk storage for output files
+    disk:
+      name: data
+      mountPath: /app/output
+      sizeGB: 10
+
+# Note: Render's free tier includes:
+# - 512MB RAM (might need to upgrade for heavy scraping)
+# - 0.1 CPU (might timeout during scraping)
+# Consider upgrading to Starter ($7/month) for better performance

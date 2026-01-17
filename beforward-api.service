@@ -1,0 +1,19 @@
+[Unit]
+Description=BE FORWARD Scraper API Server
+After=network.target
+
+[Service]
+Type=simple
+User=YOUR_USERNAME
+WorkingDirectory=/path/to/beforwardScarping
+ExecStart=/usr/bin/python3 /path/to/beforwardScarping/api_server.py
+Restart=always
+RestartSec=10
+Environment=PORT=5000
+
+# Logging
+StandardOutput=append:/path/to/beforwardScarping/state/api.log
+StandardError=append:/path/to/beforwardScarping/state/api_error.log
+
+[Install]
+WantedBy=multi-user.target

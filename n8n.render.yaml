@@ -1,0 +1,59 @@
+services:
+  # n8n Workflow Automation
+  - type: web
+    name: beforward-n8n
+    env: docker
+    region: oregon
+    plan: free
+    # Use official n8n image
+    dockerContext: https://github.com/n8n-io/n8n.git
+    dockerfilePath: ./Dockerfile
+
+    # Environment variables
+    envVars:
+      # Basic Auth
+      - key: N8N_BASIC_AUTH_ACTIVE
+        value: true
+      - key: N8N_BASIC_AUTH_USER
+        value: admin
+      - key: N8N_BASIC_AUTH_PASSWORD
+        generateValue: true  # Or set your own password
+
+      # Database (SQLite for free tier)
+      - key: DB_TYPE
+        value: sqlite
+      - key: DB_SQLITE_VACUUM_ON_STARTUP
+        value: true
+
+      # Execution settings
+      - key: EXECUTIONS_PROCESS
+        value: main
+      - key: EXECUTIONS_DATA_SAVE_ON_ERROR
+        value: all
+      - key: EXECUTIONS_DATA_SAVE_ON_SUCCESS
+        value: all
+      - key: EXECUTIONS_DATA_SAVE_MANUAL_EXECUTIONS
+        value: true
+
+      # Webhook
+      - key: WEBHOOK_URL
+        value: https://beforward-n8n.onrender.com
+
+      # Timezone
+      - key: GENERIC_TIMEZONE
+        value: UTC
+      - key: TZ
+        value: UTC
+
+      # Encryption
+      - key: N8N_ENCRYPTION_KEY
+        generateValue: true
+
+    # Disk storage for n8n data
+    disk:
+      name: n8n-data
+      mountPath: /data
+      sizeGB: 1
+
+# Note: Both services will spin down after 15min inactivity on free tier
+# For 24/7 automation, consider upgrading to Starter ($7/month per service)

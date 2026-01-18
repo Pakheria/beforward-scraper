@@ -1,0 +1,50 @@
+# BE FORWARD n8n on Railway
+# Railway provides better free tier than Render - services stay running!
+
+# Quick Setup:
+# 1. Go to https://railway.app
+# 2. Click "New Project" → "Deploy from Docker Image"
+# 3. Use these settings below
+
+---
+
+## Service Configuration
+
+### Docker Image
+```
+Image: n8nio/n8n:latest
+```
+
+### Environment Variables
+
+| Key | Value | Description |
+|-----|-------|-------------|
+| `N8N_BASIC_AUTH_ACTIVE` | `true` | Enable login |
+| `N8N_BASIC_AUTH_USER` | `admin` | Your username |
+| `N8N_BASIC_AUTH_PASSWORD` | `your-password` | Choose a secure password |
+| `WEBHOOK_URL` | `https://your-project.up.railway.app` | Railway will auto-fill this |
+| `N8N_HOST` | `0.0.0.0` | Listen on all interfaces |
+| `N8N_PORT` | `5678` | Default port |
+| `EXECUTIONS_PROCESS` | `main` | Run in main process |
+| `GENERIC_TIMEZONE` | `UTC` | Timezone |
+| `TZ` | `UTC` | Timezone |
+
+---
+
+## Alternative: railway.toml (Create this file in repo)
+
+# If you want to deploy from GitHub repo instead of Docker image:
+# Create a file called railway.toml and push to GitHub
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile.n8n"
+
+[deploy]
+startCommand = "n8n start"
+healthcheckPath = "/healthz"
+healthcheckTimeout = 300
+restartPolicyType = "ON_FAILURE"
+
+# You'll need to create Dockerfile.n8n with:
+# FROM n8nio/n8n:latest

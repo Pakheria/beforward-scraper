@@ -2,6 +2,22 @@
 
 Complete guide for deploying BE FORWARD scraper + n8n on Oracle Cloud's Always Free tier.
 
+## Quick Comparison: AMD vs ARM
+
+| Feature | AMD (Ubuntu) | ARM (Oracle Linux 9) |
+|---------|--------------|----------------------|
+| **RAM** | 1 GB | **6 GB** ⭐ |
+| **CPU** | 1 OCPU | 4 OCPU |
+| **OS Options** | Ubuntu, Oracle Linux | **Oracle Linux 9 only** |
+| **Package Manager** | apt | **dnf/yum** |
+| **Firewall** | ufw | **firewalld** |
+| **SSH User** | ubuntu | **opc** |
+| **Setup Script** | `oracle-setup.sh` | `oracle-setup-arm.sh` |
+
+**Recommendation:** Use **ARM with Oracle Linux 9** for 6x more RAM!
+
+---
+
 ## Why Oracle Cloud Free Tier?
 
 | Feature | Oracle Cloud | Render | Railway |
@@ -87,9 +103,18 @@ Complete guide for deploying BE FORWARD scraper + n8n on Oracle Cloud's Always F
    - Capacity Type: **Always Free**
 
    **Shape:**
-   - Select **"VM.Standard.E2.1.Micro"** (Always Free)
-   - 1 OCPU, 1 GB RAM
-   - **OR** choose ARM Ampere A1 for more RAM (up to 24GB!)
+   - **AMD Option:** Select **"VM.Standard.E2.1.Micro"** (Always Free)
+     - 1 OCPU, 1 GB RAM
+     - OS: Oracle Linux, Ubuntu, etc.
+
+   - **ARM Option (Recommended!):** Choose **"VM.Standard.A1.Flex"**
+     - **Up to 6 GB RAM** free! (4 OCPU min)
+     - OS: **Oracle Linux 9 only**
+     - Much more powerful than AMD option
+
+   **Image/OS:**
+   - For AMD: **Ubuntu 22.04** or **Oracle Linux 8/9**
+   - For ARM: **Oracle Linux 9** (only option for ARM)
 
    **Networking:**
    - Virtual Cloud Network: Create new VCN
@@ -110,7 +135,9 @@ Complete guide for deploying BE FORWARD scraper + n8n on Oracle Cloud's Always F
 1. Your instance will show in the list
 2. Note down:
    - **Public IP Address** (e.g., 129.123.45.67)
-   - **Username** (usually `ubuntu` or `opc`)
+   - **Username:**
+     - Ubuntu images: `ubuntu`
+     - Oracle Linux images: `opc`
 
 ---
 
@@ -145,19 +172,62 @@ You should now be connected to your Oracle VM!
 
 ---
 
-## Step 4: Prepare VM
+## Step 4: Quick Setup (Automated Script)
 
-### 4.1 Update System
+### For Ubuntu (AMD VM)
 
 ```bash
-# Run these commands on your Oracle VM
+# SSH into your Oracle VM
+ssh oracle
+
+# Run setup script
+curl -s https://raw.githubusercontent.com/Pakheria/beforward-scraper/master/scripts/oracle-setup.sh | bash
+```
+
+### For Oracle Linux 9 (ARM VM) ⭐ RECOMMENDED
+
+```bash
+# SSH into your Oracle VM (username is opc)
+ssh -i ~/.ssh/oracle-key.pem opc@YOUR_PUBLIC_IP
+
+# Run ARM setup script
+curl -s https://raw.githubusercontent.com/Pakheria/beforward-scraper/master/scripts/oracle-setup-arm.sh | bash
+```
+
+**Oracle Linux 9 ARM gives you 6GB RAM instead of 1GB!**
+
+---
+
+## Step 5: Manual Setup (Skip if using automated script)
+
+### 5.1 For Ubuntu (AMD VM)
+
+```bash
+# Update system
 sudo apt update && sudo apt upgrade -y
 
 # Install required packages
 sudo apt install -y python3 python3-pip python3-venv git nginx certbot python3-certbot-nginx
 ```
 
-### 4.2 Create Project Directory
+### 5.2 For Oracle Linux 9 (ARM VM)
+
+```bash
+# Update system (uses dnf, not apt)
+sudo dnf update -y
+
+# Install required packages
+sudo dnf install -y python3 python3-pip python3-devel git nginx
+
+# Install Docker
+sudo dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+sudo dnf install -y docker-ce docker-ce-cli containerd.io
+sudo systemctl enable docker
+sudo systemctl start docker
+sudo usermod -aG docker opc
+```
+
+### 5.3 Clone and Setup Project (Both Ubuntu and Oracle Linux)
 
 ```bash
 # Clone your repo
